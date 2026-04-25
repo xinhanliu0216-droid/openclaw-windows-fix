@@ -64,42 +64,51 @@ async function detectBrowserOpenSupport() {
 		command: resolved.command
 	};
 }
-async function openUrl(url) {
+async function openUrl(url: string): Promise<boolean> {
     if (shouldSkipBrowserOpenInTests()) return false;
-    // 动态引入 exec，用于执行底层系统命令
+
     const { exec } = await import("node:child_process");
     const platform = process.platform;
-    // 1.Force intercept for Windows platform (Windows 强制拦截)
+    const forceExec = (cmd: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            exec(cmd, (error) => {
+                if (error) {
+                    console.error(`[Browser] 唤起失败 (${platform}):`, error.message);
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            });
+        });
+    };
+    // 1Windows
     if (platform === "win32") {
-        const safeUrl = url.replace(/&/g, "^&"); 
-        exec(`start "" "${safeUrl}"`, (error) => {
-            if (error) console.error("[Browser] Windows强制唤起失败: ", error);
-        });
-        return true;
+        // Windows CMD 对 & ^ 等符号敏感，最稳妥是包在双引号里
+        // 且 start 命令第一个双引号对是标题，所以必须写成 start "" "url"
+        const safeUrl = url.replace(/"/g, '""'); // 转义引号防止注入
+        return await forceExec(`start "" "${safeUrl}"`);
     }
-    // 2. Force intercept for macOS (macOS 强制拦截)
+    // macOS
     if (platform === "darwin") {
-        exec(`open "${url}"`, (error) => {
-            if (error) console.error("[Browser] Mac强制唤起失败: ", error);
-        });
-        return true;
+        return await forceExec(`open "${url.replace(/"/g, '\\"')}"`);
     }
-    // 3. Force intercept for Linux / WSL (Linux / WSL 强制拦截)
+    // Linux / WSL
     if (platform === "linux") {
-        // 核心逻辑：先尝试 xdg-open，如果失败（||），则假定是 WSL 环境，直接调用宿主机 PowerShell
-        const linuxCommand = `xdg-open "${url}" || powershell.exe -NoProfile -Command Start-Process "${url}"`;
-        exec(linuxCommand, (error) => {
-            if (error) console.error("[Browser] Linux/WSL强制唤起失败: ", error);
-        });
-        return true;
+        const { t: isWSL } = await import("./wsl-DyUPSL8q.js");
+        const wsl = await isWSL();
+        if (wsl) {
+            // WSL 
+            const winCmd = `powershell.exe -NoProfile -NonInteractive -Command "Start-Process '${url}'"`;
+            const success = await forceExec(winCmd);
+            if (success) return true;
+        }
+        return await forceExec(`xdg-open "${url.replace(/"/g, '\\"')}"`);
     }
-    // 4. Fallback to legacy detection logic if the above platforms don't match (如果上面的平台都不匹配，乖乖走原有的老逻辑)
     const resolved = await resolveBrowserOpenCommand();
     if (!resolved.argv) return false;
-    const command = [...resolved.argv];
-    command.push(url);
+    const command = [...resolved.argv, url];
     try {
-        await runCommandWithTimeout(command, { timeoutMs: 10e3 }); // 顺手把这里的超时也加长到10秒
+        await runCommandWithTimeout(command, { timeoutMs: 15000 }); // 给 15 秒，更宽容一些
         return true;
     } catch {
         return false;
