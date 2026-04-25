@@ -48,7 +48,7 @@ if (process.platform === "win32") {
 }
 ```
 
-**完全替换为以下具备字符安全转义的稳定版本：**
+**完全替换为以下具备字符安全转义的稳定版本：(browser-open-blTvpJBc.js文件中第67行）**
 ```javascript
 if (process.platform === "win32") {
     const { exec } = await import("node:child_process");
