@@ -18,7 +18,7 @@ In the branch handling the `win32` platform within this module, there are two cr
 
 ---
 
-## 🛠️ Local Hotfix Guide
+## Local Hotfix Guide
 Before the official release of the next version containing this fix, Windows users can completely resolve this issue by modifying the locally compiled code.
 
 We recommend using **VSCode (Visual Studio Code)** for a global search and replace. The entire process takes about 2 minutes.
