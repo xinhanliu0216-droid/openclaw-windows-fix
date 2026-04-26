@@ -66,7 +66,6 @@ async function detectBrowserOpenSupport() {
 }
 async function openUrl(url: string): Promise<boolean> {
     if (shouldSkipBrowserOpenInTests()) return false;
-
     const { exec } = await import("node:child_process");
     const platform = process.platform;
     const forceExec = (cmd: string): Promise<boolean> => {
@@ -81,11 +80,9 @@ async function openUrl(url: string): Promise<boolean> {
             });
         });
     };
-    // 1Windows
+    // Windows
     if (platform === "win32") {
-        // Windows CMD 对 & ^ 等符号敏感，最稳妥是包在双引号里
-        // 且 start 命令第一个双引号对是标题，所以必须写成 start "" "url"
-        const safeUrl = url.replace(/"/g, '""'); // 转义引号防止注入
+        const safeUrl = url.replace(/"/g, '""'); 
         return await forceExec(`start "" "${safeUrl}"`);
     }
     // macOS
